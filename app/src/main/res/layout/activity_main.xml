@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <SurfaceView android:id="@+id/preview_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+    </SurfaceView>
+
+
+    <com.ggstudios.widgets.ViewfinderView
+        android:id="@+id/viewfinder_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/transparent">
+    </com.ggstudios.widgets.ViewfinderView>
+
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:background="@color/white97"
+        android:layout_gravity="top">
+
+    </RelativeLayout>
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:id="@+id/qr_code"/>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:background="@color/white97"
+        android:layout_gravity="bottom">
+
+        <Button
+            android:id="@+id/btn_gen_qr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/generate_qr"/>
+
+        <Button
+            android:id="@+id/btn_scan_qr"
+            android:layout_toRightOf="@+id/btn_gen_qr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/scan_qr"/>
+
+        <Button
+            android:id="@+id/btn_capture"
+            android:layout_toRightOf="@+id/btn_scan_qr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/capture"/>
+
+    </RelativeLayout>
+
+</FrameLayout>
+
+

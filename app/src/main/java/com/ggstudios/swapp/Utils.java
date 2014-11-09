@@ -13,7 +13,8 @@ import java.util.ArrayList;
 
 public class Utils {
 
-    public static void addContact(Context con, String name, String number) {
+    public static int addContact(Context con, String name, String number, String email) {
+        int contactId = -1;
 
         ArrayList<ContentProviderOperation> ops = new ArrayList<ContentProviderOperation>();
         int rawContactInsertIndex = ops.size();
@@ -32,13 +33,22 @@ public class Utils {
                 .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
                 .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name)
                 .build());
+        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawContactInsertIndex)
+                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                .build());
         try {
-            ContentProviderResult[] res = con.getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
+            ContentProviderResult[] results = con.getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
+
+            contactId = Integer.parseInt(results[0].uri.getLastPathSegment());
         } catch (RemoteException e) {
             e.printStackTrace();
         } catch (OperationApplicationException e) {
             e.printStackTrace();
         }
+
+        return contactId;
     }
 
     /**

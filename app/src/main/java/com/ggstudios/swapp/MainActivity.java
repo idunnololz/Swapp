@@ -1,6 +1,7 @@
 package com.ggstudios.swapp;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
@@ -10,12 +11,14 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.drawable.AnimationDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActionBarDrawerToggle;
+import android.support.v4.view.MotionEventCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.telephony.TelephonyManager;
 import android.util.Log;
@@ -33,6 +36,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
+import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -42,7 +46,6 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import com.ggstudios.widgets.GifView;
 import com.ggstudios.widgets.ViewfinderView;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
@@ -73,9 +76,10 @@ import java.util.Date;
 import java.util.List;
 
 
-public class MainActivity extends Activity implements IDecoderActivity, SurfaceHolder.Callback,
-        ConfirmContactDialogFragment.ConfirmContactDialogListener {
+public class MainActivity extends Activity implements IDecoderActivity, SurfaceHolder.Callback {
     private static final String TAG = MainActivity.class.getSimpleName();
+
+    private static final boolean DEBUG = false;
 
     private static final String PREF_ADD_HISTORY = "add_history";
 
@@ -99,7 +103,7 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
     TextView txtName;
     TextView txtNumber;
     TextView txtEmail;
-    GifView gifView;
+    ImageView imgCheck;
     View addContactContainer;
     View textContainer;
     DrawerLayout drawer;
@@ -115,7 +119,7 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
     private List<ContactHistoryItem> history;
     ContactHistoryAdapter adapter;
 
-    //boolean
+    boolean cameraHit = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -125,14 +129,14 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         decodeFormats = new ArrayList<BarcodeFormat>();
         decodeFormats.add(BarcodeFormat.QR_CODE);
 
-        CheckBox toggle = (CheckBox) findViewById(R.id.toggle);
+        final CheckBox toggle = (CheckBox) findViewById(R.id.toggle);
         surfaceView = (SurfaceView) findViewById(R.id.preview_view);
         imgQr = (ImageView) findViewById(R.id.qr_code);
         qrContainer = findViewById(R.id.qr_container);
         txtName = (TextView) findViewById(R.id.txt_name);
         txtNumber = (TextView) findViewById(R.id.txt_number);
         txtEmail = (TextView) findViewById(R.id.txt_email);
-        gifView = (GifView) findViewById(R.id.gifView);
+        imgCheck = (ImageView) findViewById(R.id.check_img);
         addContactContainer = findViewById(R.id.add_contact_container);
         textContainer = findViewById(R.id.txt_container);
         final ImageButton btnDrawer = (ImageButton) findViewById(R.id.btn_drawer);
@@ -167,19 +171,42 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
 
+                switch (MotionEventCompat.getActionMasked(motionEvent)) {
+                    case MotionEvent.ACTION_UP:
+                        if (motionEvent.getX() < toggle.getWidth() / 2) {
+                            if (cameraHit) {
+                                cameraHit = false;
+                                toggle.setButtonDrawable(R.drawable.camera_qr_switch);
+                            } else {
+                                if (toggle.isChecked()) {
+                                    toggle.setButtonDrawable(R.drawable.ic_camera);
+                                    cameraHit = true;
+                                }
+                            }
+                        } else {
+                            cameraHit = false;
+                            toggle.setButtonDrawable(R.drawable.camera_qr_switch);
+                            toggle.setChecked(true);
+                        }
+                        break;
+                }
                 return false;
             }
         });
         toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                if (b) {
-                    qrContainer.setVisibility(View.INVISIBLE);
-                    handler.rearm();
+                if (cameraHit) {
+
                 } else {
-                    genQrIfNeeded();
-                    qrContainer.setVisibility(View.VISIBLE);
-                    handler.disarm();
+                    if (b) {
+                        qrContainer.setVisibility(View.INVISIBLE);
+                        handler.rearm();
+                    } else {
+                        genQrIfNeeded();
+                        qrContainer.setVisibility(View.VISIBLE);
+                        handler.disarm();
+                    }
                 }
             }
         });
@@ -253,6 +280,19 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
 
         adapter = new ContactHistoryAdapter(this, history);
         listHistory.setAdapter(adapter);
+        listHistory.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                ContactHistoryItem item = adapter.getItem(i);
+
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    Uri contactUri = ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, item.cId);
+                    intent.setData(contactUri);
+                    startActivity(intent);
+                } catch (ActivityNotFoundException e) {}
+            }
+        });
     }
 
     private void setupDrawer() {
@@ -282,37 +322,63 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
 
     private void genQrIfNeeded() {
         if (imgQr.getDrawable() == null) {
+            String displayName = null;
+            String email = null;
+
             TelephonyManager tMgr = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
             String phoneNumber = tMgr.getLine1Number();
+            {
+                final String[] SELF_PROJECTION = new String[]{
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME};
+                Cursor c = getContentResolver().query(ContactsContract.Profile.CONTENT_URI, SELF_PROJECTION, null, null, null);
+                int count = c.getCount();
+                String[] columnNames = c.getColumnNames();
+                c.moveToFirst();
+                int position = c.getPosition();
 
-            final String[] SELF_PROJECTION = new String[]{
-                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,};
-            Cursor c = getContentResolver().query(ContactsContract.Profile.CONTENT_URI, SELF_PROJECTION, null, null, null);
-            int count = c.getCount();
-            String[] columnNames = c.getColumnNames();
-            c.moveToFirst();
-            int position = c.getPosition();
-
-            if (count == 1 && position == 0) {
-                String displayName = c.getString(c.getColumnIndex(columnNames[0]));
-
-                String compact = phoneNumber + "|" + displayName;
-
-                Log.d(TAG, "compact: " + compact);
-
-                QRCodeEncoder qrCodeEncoder = new QRCodeEncoder(compact,
-                        null,
-                        Contents.Type.TEXT,
-                        BarcodeFormat.QR_CODE.toString(),
-                        smallerDimension);
-                try {
-                    Bitmap bitmap = qrCodeEncoder.encodeAsBitmap();
-                    imgQr.setImageBitmap(bitmap);
-                } catch (WriterException e) {
-                    e.printStackTrace();
+                if (count == 1 && position == 0) {
+                    displayName = c.getString(c.getColumnIndex(columnNames[0]));
                 }
+                c.close();
             }
-            c.close();
+
+            {
+                final String[] SELF_PROJECTION = new String[]{
+                        ContactsContract.CommonDataKinds.Email.ADDRESS,
+                        ContactsContract.CommonDataKinds.Email.IS_PRIMARY,};
+                Cursor c = getContentResolver().query(
+                        Uri.withAppendedPath(
+                            ContactsContract.Profile.CONTENT_URI,
+                            ContactsContract.Contacts.Data.CONTENT_DIRECTORY), SELF_PROJECTION,
+                        ContactsContract.Contacts.Data.MIMETYPE + " = ?",
+                        new String[]{ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE},
+                        ContactsContract.Contacts.Data.IS_PRIMARY + " DESC");
+                int count = c.getCount();
+                String[] columnNames = c.getColumnNames();
+                c.moveToFirst();
+                int position = c.getPosition();
+
+                if (count == 1 && position == 0) {
+                    email = c.getString(c.getColumnIndex(columnNames[0]));
+                }
+                c.close();
+            }
+
+            String compact = phoneNumber + "|" + displayName + "|" + email;
+
+            Log.d(TAG, "compact: " + compact);
+
+            QRCodeEncoder qrCodeEncoder = new QRCodeEncoder(compact,
+                    null,
+                    Contents.Type.TEXT,
+                    BarcodeFormat.QR_CODE.toString(),
+                    smallerDimension);
+            try {
+                Bitmap bitmap = qrCodeEncoder.encodeAsBitmap();
+                imgQr.setImageBitmap(bitmap);
+            } catch (WriterException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -325,9 +391,14 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         String[] toks = rawString.split("\\|");
         final String number = toks[0];
         final String name = toks[1];
+        String e = null;
+        if (toks.length > 2) {
+            e = toks[2];
+        }
 
-        addToHistory(name);
+        final String email = e;
 
+        //onOkClicked(name, number);
         Log.d(TAG, String.format("number: %s; name: %s", number, name));
 
         //ConfirmContactDialogFragment frag = ConfirmContactDialogFragment.newInstance(name, number);
@@ -336,8 +407,9 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         //textContainer.setVisibility(View.INVISIBLE);
         txtName.setText(name);
         txtNumber.setText(number);
+        txtEmail.setText(email);
 
-        gifView.setVisibility(View.INVISIBLE);
+        imgCheck.setVisibility(View.INVISIBLE);
 
         Animation ani = new AlphaAnimation(0f, 1f);
         ani.setDuration(ANIMATION_DURATION);
@@ -360,7 +432,10 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
 //                textContainer.setVisibility(View.VISIBLE);
 //                textContainer.startAnimation(ani);
 
-                gifView.setVisibility(View.VISIBLE);
+                imgCheck.setVisibility(View.VISIBLE);
+                imgCheck.setBackgroundResource(R.drawable.transition);
+                AnimationDrawable anim = (AnimationDrawable) imgCheck.getBackground();
+                anim.start();
                 //gifView.setGIFResource(R.drawable.transition);
 
                 textContainer.postDelayed(new Runnable() {
@@ -371,21 +446,17 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
                         ani.setFillAfter(true);
                         ani.setAnimationListener(new Animation.AnimationListener() {
                             @Override
-                            public void onAnimationStart(Animation animation) {
-
-                            }
+                            public void onAnimationStart(Animation animation) {}
 
                             @Override
                             public void onAnimationEnd(Animation animation) {
                                 addContactContainer.setVisibility(View.INVISIBLE);
-                                onOkClicked(name, number);
+                                onOkClicked(name, number, email);
                                 animating = false;
                             }
 
                             @Override
-                            public void onAnimationRepeat(Animation animation) {
-
-                            }
+                            public void onAnimationRepeat(Animation animation) {}
                         });
                         addContactContainer.startAnimation(ani);
                     }
@@ -479,11 +550,12 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         editor.apply();
     }
 
-    private void addToHistory(String contactName) {
+    private void addToHistory(String contactName, int contactId) {
         ContactHistoryItem i = new ContactHistoryItem();
         i.name = contactName;
         Calendar c = Calendar.getInstance();
         i.timeAdded = c.getTime();
+        i.cId = contactId;
 
         history.add(i);
 
@@ -599,14 +671,19 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         }
     }
 
-    @Override
-    public void onOkClicked(String name, String number) {
-        //Utils.addContact(this, name, number);
-        handler.reset();
-    }
+    public void onOkClicked(final String name, String number, String email) {
+        int contactId = -1;
+        if (!DEBUG) {
+            contactId = Utils.addContact(this, name, number, email);
+        }
 
-    @Override
-    public void onCancelClicked() {
+        final int cId = contactId;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                addToHistory(name, cId);
+            }
+        });
         handler.reset();
     }
 
@@ -618,18 +695,21 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
     private static class ContactHistoryItem {
         String name;
         Date timeAdded;
+        int cId;
 
         public ContactHistoryItem() {}
 
         public ContactHistoryItem(JSONObject o) throws JSONException {
             name = o.getString("name");
             timeAdded = new Date(o.getLong("timeAdded"));
+            cId = o.optInt("cId", -1);
         }
 
         public JSONObject toJson() throws JSONException {
             JSONObject o = new JSONObject();
             o.put("name", name);
             o.put("timeAdded", timeAdded.getTime());
+            o.put("cId", cId);
             return o;
         }
     }
@@ -653,7 +733,7 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
 
         @Override
         public ContactHistoryItem getItem(int i) {
-            return history.get(i);
+            return history.get(history.size() - i - 1);
         }
 
         @Override

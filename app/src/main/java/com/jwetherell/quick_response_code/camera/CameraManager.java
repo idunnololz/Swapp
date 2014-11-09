@@ -54,21 +54,25 @@ public final class CameraManager {
     private int requestedFramingRectWidth;
     private int requestedFramingRectHeight;
 
+    private boolean awaitingOcr = false;
+
     /**
      * Preview frames are delivered here, which we pass on to the registered
      * handler. Make sure to clear the handler so it will only receive one
      * message.
      */
     private final PreviewCallback previewCallback;
+    private final PreviewCallback ocrPreviewCallback;
     /**
      * Autofocus callbacks arrive here, and are dispatched to the Handler which
      * requested them.
      */
     private final AutoFocusCallback autoFocusCallback;
 
-    public CameraManager(Context context) {
+    public CameraManager(Context context, Handler callbackHandler) {
         this.configManager = new CameraConfigurationManager(context);
         previewCallback = new PreviewCallback(configManager);
+        ocrPreviewCallback = new PreviewCallback(configManager, true, callbackHandler);
         autoFocusCallback = new AutoFocusCallback();
     }
 
@@ -185,10 +189,12 @@ public final class CameraManager {
      *            The what field of the message to be sent.
      */
     public void requestPreviewFrame(Handler handler, int message) {
-        Camera theCamera = camera;
-        if (theCamera != null && previewing) {
-            previewCallback.setHandler(handler, message);
-            theCamera.setOneShotPreviewCallback(previewCallback);
+        if (!awaitingOcr) {
+            Camera theCamera = camera;
+            if (theCamera != null && previewing) {
+                previewCallback.setHandler(handler, message);
+                theCamera.setOneShotPreviewCallback(previewCallback);
+            }
         }
     }
 
@@ -332,11 +338,25 @@ public final class CameraManager {
                 Preferences.KEY_REVERSE_IMAGE);
     }
 
+    public PlanarYUVLuminanceSource buildOcrLuminanceSource(byte[] data, int width, int height) {
+        Rect rect = getFramingRectInPreview();
+        if (rect == null) {
+            return null;
+        }
+        // Go ahead and assume it's YUV rather than die.
+        return new PlanarYUVLuminanceSource(data, width, height, rect.left, rect.top, rect.width(), rect.height(),
+                Preferences.KEY_REVERSE_IMAGE);
+    }
+
     public synchronized void requestOcrDecode(Handler handler, int message) {
+        awaitingOcr = true;
         Camera theCamera = camera;
         if (theCamera != null && previewing) {
-            previewCallback.setHandler(handler, message);
-            theCamera.setOneShotPreviewCallback(previewCallback);
+            theCamera.setOneShotPreviewCallback(ocrPreviewCallback);
         }
+    }
+
+    public void releaseOcr() {
+        awaitingOcr = false;
     }
 }

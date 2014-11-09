@@ -1,65 +1,214 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<android.support.v4.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <SurfaceView android:id="@+id/preview_view"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-    </SurfaceView>
+
+        <SurfaceView android:id="@+id/preview_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+        </SurfaceView>
 
 
-    <com.ggstudios.widgets.ViewfinderView
-        android:id="@+id/viewfinder_view"
-        android:layout_width="match_parent"
+        <com.ggstudios.widgets.ViewfinderView
+            android:id="@+id/viewfinder_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/transparent">
+        </com.ggstudios.widgets.ViewfinderView>
+
+        <FrameLayout
+            android:id="@+id/qr_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/white"
+            android:visibility="invisible">
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:id="@+id/qr_code"/>
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/add_contact_container"
+            android:paddingTop="110dp"
+            android:paddingBottom="110dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/white">
+
+            <LinearLayout
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/txt_container"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_marginTop="10dp"
+                        android:text="Gary Guo"
+                        android:fontFamily="sans-serif-black"
+                        android:textStyle="bold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:id="@+id/txt_name"
+                        android:textSize="30sp"
+                        android:layout_marginBottom="20dp"
+                        style="@android:style/TextAppearance.Large"/>
+
+                    <TextView
+                        android:text="415-111-1111"
+                        android:fontFamily="sans-serif-light"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:id="@+id/txt_number"
+                        android:layout_marginBottom="4dp"
+                        style="@android:style/TextAppearance.Medium"/>
+
+                    <TextView
+                        android:text="gary@gmail.com"
+                        android:fontFamily="sans-serif-light"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:id="@+id/txt_email"
+                        style="@android:style/TextAppearance.Medium"/>
+                </LinearLayout>
+
+                <com.ggstudios.widgets.GifView
+                    android:layout_marginTop="10dp"
+                    android:id="@+id/gifView"
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_gravity="center" />
+
+            </LinearLayout>
+
+        </FrameLayout>
+
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="110dp"
+            android:background="@color/white97"
+            android:layout_gravity="top">
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="40dp"
+                android:layout_marginTop="45dp"
+                android:src="@drawable/ic_logo"/>
+
+            <ImageButton
+                android:id="@+id/btn_drawer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_menu"
+                android:background="?android:attr/selectableItemBackground"
+                android:padding="10dp"
+                android:layout_alignParentRight="true"
+                android:layout_marginTop="35dp"
+                android:layout_marginRight="40dp"/>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="110dp"
+            android:background="@color/white97"
+            android:layout_gravity="bottom">
+
+            <CheckBox
+                android:id="@+id/toggle"
+                android:button="@drawable/camera_qr_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:scaleX="0.8"
+                android:scaleY="0.8"
+                android:layout_centerInParent="true"/>
+
+
+        </RelativeLayout>
+
+    </FrameLayout>
+
+    <!-- The navigation drawer -->
+    <LinearLayout
+        android:id="@+id/left_drawer"
+        android:layout_width="240dp"
         android:layout_height="match_parent"
-        android:background="@color/transparent">
-    </com.ggstudios.widgets.ViewfinderView>
+        android:layout_gravity="end"
+        android:orientation="vertical"
+        android:background="@color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="50dp">
+
+            <TextView
+                android:textColor="@color/grey"
+                style="@android:style/TextAppearance.Medium"
+                android:textStyle="bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:layout_marginLeft="30dp"
+                android:layout_marginRight="30dp"
+                android:text="@string/recently_added"
+                android:layout_gravity="center"/>
+
+            <ImageButton
+                android:id="@+id/btn_close"
+                android:background="?android:attr/selectableItemBackground"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_close"
+                android:padding="10dp"/>
+
+        </LinearLayout>
 
 
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:background="@color/white97"
-        android:layout_gravity="top">
-
-    </RelativeLayout>
-
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:id="@+id/qr_code"/>
-
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:background="@color/white97"
-        android:layout_gravity="bottom">
+        <ListView android:id="@+id/history"
+            android:layout_marginTop="10dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:choiceMode="singleChoice"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="0dp"/>
 
         <Button
-            android:id="@+id/btn_gen_qr"
+            android:id="@+id/btn_edit_profile"
+            android:layout_gravity="center"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/generate_qr"/>
+            android:paddingLeft="30dp"
+            android:paddingRight="30dp"
+            android:background="@drawable/custom_button_bg"
+            android:text="@string/edit_my_info"
+            android:layout_marginBottom="40dp"
+            android:textColor="@color/grey"
+            android:textSize="14sp"/>
 
-        <Button
-            android:id="@+id/btn_scan_qr"
-            android:layout_toRightOf="@+id/btn_gen_qr"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/scan_qr"/>
+    </LinearLayout>
 
-        <Button
-            android:id="@+id/btn_capture"
-            android:layout_toRightOf="@+id/btn_scan_qr"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/capture"/>
 
-    </RelativeLayout>
-
-</FrameLayout>
+</android.support.v4.widget.DrawerLayout>
 
 

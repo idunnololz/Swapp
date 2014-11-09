@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.ggstudios.swapp.R;
+import com.ggstudios.swapp.Utils;
 import com.jwetherell.quick_response_code.QrViewListener;
 import com.jwetherell.quick_response_code.camera.CameraManager;
 import com.google.zxing.ResultPoint;
@@ -32,6 +33,9 @@ public final class ViewfinderView extends View implements QrViewListener {
     private static final int MAX_RESULT_POINTS = 20;
     private static final int POINT_SIZE = 6;
 
+    private static final int MARGIN_DP = 10;
+    private static final int HAIR_LENGTH_DP = 30;
+
     private CameraManager cameraManager;
     private final Paint paint;
     private Bitmap resultBitmap;
@@ -43,6 +47,10 @@ public final class ViewfinderView extends View implements QrViewListener {
     private int scannerAlpha;
     private List<ResultPoint> possibleResultPoints;
     private List<ResultPoint> lastPossibleResultPoints;
+
+    private Rect frameRect;
+
+    private int margin, hairLen, strokeWidth;
 
     // This constructor is used when the class is built from an XML resource.
     public ViewfinderView(Context context, AttributeSet attrs) {
@@ -60,86 +68,115 @@ public final class ViewfinderView extends View implements QrViewListener {
         scannerAlpha = 0;
         possibleResultPoints = new ArrayList<ResultPoint>(5);
         lastPossibleResultPoints = null;
+
+        margin = (int) Utils.convertDpToPixel(MARGIN_DP, getContext());
+        hairLen = (int) Utils.convertDpToPixel(HAIR_LENGTH_DP, getContext());
+        strokeWidth = (int) Utils.convertDpToPixel(3, getContext());
     }
 
     public void setCameraManager(CameraManager cameraManager) {
         this.cameraManager = cameraManager;
     }
 
+    public void setFrameRect(Rect frameRect) {
+        this.frameRect = frameRect;
+    }
+
     @Override
     public void onDraw(Canvas canvas) {
         if (cameraManager != null) {
-            Rect frame = cameraManager.getFramingRect();
-            if (frame == null) {
-                return;
+            if (frameRect != null) {
+                int l = frameRect.left;
+                int r = frameRect.right;
+                int t = frameRect.top;
+                int b = frameRect.bottom;
+
+                paint.setColor(0xFF8CC63F);
+                paint.setStrokeWidth(strokeWidth);
+
+                canvas.drawLine(l - (strokeWidth / 2), t, l + hairLen, t, paint);
+                canvas.drawLine(l, t, l, t + hairLen, paint);
+
+                canvas.drawLine(r + (strokeWidth / 2), t, r - hairLen, t, paint);
+                canvas.drawLine(r, t, r, t + hairLen, paint);
+
+                canvas.drawLine(l - (strokeWidth / 2), b, l + hairLen, b, paint);
+                canvas.drawLine(l, b, l, b - hairLen, paint);
+
+                canvas.drawLine(r + (strokeWidth / 2), b, r - hairLen, b, paint);
+                canvas.drawLine(r, b, r, b - hairLen, paint);
             }
-            int width = canvas.getWidth();
-            int height = canvas.getHeight();
 
-            // Draw the exterior (i.e. outside the framing rect) darkened
-            paint.setColor(resultBitmap != null ? resultColor : maskColor);
-            canvas.drawRect(0, 0, width, frame.top, paint);
-            canvas.drawRect(0, frame.top, frame.left, frame.bottom + 1, paint);
-            canvas.drawRect(frame.right + 1, frame.top, width, frame.bottom + 1, paint);
-            canvas.drawRect(0, frame.bottom + 1, width, height, paint);
-
-            if (resultBitmap != null) {
-                // Draw the opaque result bitmap over the scanning rectangle
-                paint.setAlpha(CURRENT_POINT_OPACITY);
-                canvas.drawBitmap(resultBitmap, null, frame, paint);
-            } else {
-
-                // Draw a two pixel solid black border inside the framing rect
-                paint.setColor(frameColor);
-                canvas.drawRect(frame.left, frame.top, frame.right + 1, frame.top + 2, paint);
-                canvas.drawRect(frame.left, frame.top + 2, frame.left + 2, frame.bottom - 1, paint);
-                canvas.drawRect(frame.right - 1, frame.top, frame.right + 1, frame.bottom - 1, paint);
-                canvas.drawRect(frame.left, frame.bottom - 1, frame.right + 1, frame.bottom + 1, paint);
-
-                // Draw a red "laser scanner" line through the middle to show
-                // decoding is active
-                paint.setColor(laserColor);
-                paint.setAlpha(SCANNER_ALPHA[scannerAlpha]);
-                scannerAlpha = (scannerAlpha + 1) % SCANNER_ALPHA.length;
-                int middle = frame.height() / 2 + frame.top;
-                canvas.drawRect(frame.left + 2, middle - 1, frame.right - 1, middle + 2, paint);
-
-                Rect previewFrame = cameraManager.getFramingRectInPreview();
-                float scaleX = frame.width() / (float) previewFrame.width();
-                float scaleY = frame.height() / (float) previewFrame.height();
-
-                List<ResultPoint> currentPossible = possibleResultPoints;
-                List<ResultPoint> currentLast = lastPossibleResultPoints;
-                int frameLeft = frame.left;
-                int frameTop = frame.top;
-                if (currentPossible.isEmpty()) {
-                    lastPossibleResultPoints = null;
-                } else {
-                    possibleResultPoints = new ArrayList<ResultPoint>(5);
-                    lastPossibleResultPoints = currentPossible;
-                    paint.setAlpha(CURRENT_POINT_OPACITY);
-                    paint.setColor(resultPointColor);
-                    synchronized (currentPossible) {
-                        for (ResultPoint point : currentPossible) {
-                            canvas.drawCircle(frameLeft + (int) (point.getX() * scaleX), frameTop + (int) (point.getY() * scaleY), POINT_SIZE, paint);
-                        }
-                    }
-                }
-                if (currentLast != null) {
-                    paint.setAlpha(CURRENT_POINT_OPACITY / 2);
-                    paint.setColor(resultPointColor);
-                    synchronized (currentLast) {
-                        for (ResultPoint point : currentLast) {
-                            canvas.drawCircle(frameLeft + (int) (point.getX() * scaleX), frameTop + (int) (point.getY() * scaleY), POINT_SIZE / 2, paint);
-                        }
-                    }
-                }
-
-                // Request another update at the animation interval, but only
-                // repaint the laser line,
-                // not the entire viewfinder mask.
-                postInvalidateDelayed(ANIMATION_DELAY, frame.left - POINT_SIZE, frame.top - POINT_SIZE, frame.right + POINT_SIZE, frame.bottom + POINT_SIZE);
-            }
+//            Rect frame = cameraManager.getFramingRect();
+//            if (frame == null) {
+//                return;
+//            }
+//            int width = canvas.getWidth();
+//            int height = canvas.getHeight();
+//
+//            // Draw the exterior (i.e. outside the framing rect) darkened
+//            paint.setColor(resultBitmap != null ? resultColor : maskColor);
+//            canvas.drawRect(0, 0, width, frame.top, paint);
+//            canvas.drawRect(0, frame.top, frame.left, frame.bottom + 1, paint);
+//            canvas.drawRect(frame.right + 1, frame.top, width, frame.bottom + 1, paint);
+//            canvas.drawRect(0, frame.bottom + 1, width, height, paint);
+//
+//            if (resultBitmap != null) {
+//                // Draw the opaque result bitmap over the scanning rectangle
+//                paint.setAlpha(CURRENT_POINT_OPACITY);
+//                canvas.drawBitmap(resultBitmap, null, frame, paint);
+//            } else {
+//                // Draw a two pixel solid black border inside the framing rect
+//                paint.setColor(frameColor);
+//                canvas.drawRect(frame.left, frame.top, frame.right + 1, frame.top + 2, paint);
+//                canvas.drawRect(frame.left, frame.top + 2, frame.left + 2, frame.bottom - 1, paint);
+//                canvas.drawRect(frame.right - 1, frame.top, frame.right + 1, frame.bottom - 1, paint);
+//                canvas.drawRect(frame.left, frame.bottom - 1, frame.right + 1, frame.bottom + 1, paint);
+//
+//                // Draw a red "laser scanner" line through the middle to show
+//                // decoding is active
+//                paint.setColor(laserColor);
+//                paint.setAlpha(SCANNER_ALPHA[scannerAlpha]);
+//                scannerAlpha = (scannerAlpha + 1) % SCANNER_ALPHA.length;
+//                int middle = frame.height() / 2 + frame.top;
+//                canvas.drawRect(frame.left + 2, middle - 1, frame.right - 1, middle + 2, paint);
+//
+//                Rect previewFrame = cameraManager.getFramingRectInPreview();
+//                float scaleX = frame.width() / (float) previewFrame.width();
+//                float scaleY = frame.height() / (float) previewFrame.height();
+//
+//                List<ResultPoint> currentPossible = possibleResultPoints;
+//                List<ResultPoint> currentLast = lastPossibleResultPoints;
+//                int frameLeft = frame.left;
+//                int frameTop = frame.top;
+//                if (currentPossible.isEmpty()) {
+//                    lastPossibleResultPoints = null;
+//                } else {
+//                    possibleResultPoints = new ArrayList<ResultPoint>(5);
+//                    lastPossibleResultPoints = currentPossible;
+//                    paint.setAlpha(CURRENT_POINT_OPACITY);
+//                    paint.setColor(resultPointColor);
+//                    synchronized (currentPossible) {
+//                        for (ResultPoint point : currentPossible) {
+//                            canvas.drawCircle(frameLeft + (int) (point.getX() * scaleX), frameTop + (int) (point.getY() * scaleY), POINT_SIZE, paint);
+//                        }
+//                    }
+//                }
+//                if (currentLast != null) {
+//                    paint.setAlpha(CURRENT_POINT_OPACITY / 2);
+//                    paint.setColor(resultPointColor);
+//                    synchronized (currentLast) {
+//                        for (ResultPoint point : currentLast) {
+//                            canvas.drawCircle(frameLeft + (int) (point.getX() * scaleX), frameTop + (int) (point.getY() * scaleY), POINT_SIZE / 2, paint);
+//                        }
+//                    }
+//                }
+//
+//                // Request another update at the animation interval, but only
+//                // repaint the laser line,
+//                // not the entire viewfinder mask.
+//                postInvalidateDelayed(ANIMATION_DELAY, frame.left - POINT_SIZE, frame.top - POINT_SIZE, frame.right + POINT_SIZE, frame.bottom + POINT_SIZE);
+//            }
         }
     }
 

@@ -57,5 +57,9 @@
     <string name="contact_name">Contact name</string>
     <string name="phone_number">Phone number</string>
     <string name="capture">Capture</string>
+    <string name="recently_added">RECENTLY ADDED</string>
+    <string name="drawer_open">Drawer open</string>
+    <string name="drawer_close">Drawer close</string>
+    <string name="edit_my_info">Edit My Info</string>
 
 </resources>

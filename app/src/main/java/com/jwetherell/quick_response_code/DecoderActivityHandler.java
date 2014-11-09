@@ -17,12 +17,14 @@
 package com.jwetherell.quick_response_code;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.util.Collection;
 
@@ -30,6 +32,7 @@ import com.ggstudios.swapp.R;
 import com.jwetherell.quick_response_code.camera.CameraManager;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
+import com.ocr.OcrResult;
 
 /**
  * This class handles all the messaging which comprises the state machine for
@@ -47,7 +50,7 @@ public final class DecoderActivityHandler extends Handler {
     private State state;
 
     private enum State {
-        PREVIEW, SUCCESS, DONE
+        PREVIEW, SUCCESS, DONE, DISARM
     }
 
     public DecoderActivityHandler(IDecoderActivity activity, Collection<BarcodeFormat> decodeFormats, String characterSet,
@@ -80,11 +83,13 @@ public final class DecoderActivityHandler extends Handler {
                 restartPreviewAndDecode();
                 break;
             case R.id.decode_succeeded:
-                Log.d(TAG, "Got decode succeeded message");
-                state = State.SUCCESS;
-                Bundle bundle = message.getData();
-                Bitmap barcode = bundle == null ? null : (Bitmap) bundle.getParcelable(DecodeThread.BARCODE_BITMAP);
-                activity.handleDecode((Result) message.obj, barcode);
+                if (state != State.DISARM) {
+                    Log.d(TAG, "Got decode succeeded message");
+                    state = State.SUCCESS;
+                    Bundle bundle = message.getData();
+                    Bitmap barcode = bundle == null ? null : (Bitmap) bundle.getParcelable(DecodeThread.BARCODE_BITMAP);
+                    activity.handleDecode((Result) message.obj, barcode);
+                }
                 break;
             case R.id.decode_failed:
                 // We're decoding as fast as possible, so when one decode fails,
@@ -100,6 +105,15 @@ public final class DecoderActivityHandler extends Handler {
                 } else {
                     Log.e(TAG, "Scan result message, activity is not Activity. Doing nothing.");
                 }
+            case R.id.ocr_decode_succeeded:
+                state = State.SUCCESS;
+                //activity.setShutterButtonClickable(true);
+                activity.handleOcrDecode((OcrResult) message.obj);
+                break;
+            case R.id.ocr_decode_failed:
+                state = State.PREVIEW;
+                Toast toast = Toast.makeText((Context)activity, "OCR failed. Please try again.", Toast.LENGTH_SHORT);
+                toast.show();
                 break;
         }
     }
@@ -124,6 +138,15 @@ public final class DecoderActivityHandler extends Handler {
 
     public void reset() {
         restartPreviewAndDecode();
+        cameraManager.requestPreviewFrame(decodeThread.getHandler(), R.id.decode);
+    }
+
+    public void disarm() {
+        state = State.DISARM;
+    }
+
+    public void rearm() {
+        state = State.PREVIEW;
     }
 
     void restartPreviewAndDecode() {
@@ -138,7 +161,7 @@ public final class DecoderActivityHandler extends Handler {
     /**
      * Request OCR on the current preview frame.
      */
-    private void ocrDecode() {
+    public void ocrDecode() {
         state = State.DONE;
         cameraManager.requestOcrDecode(decodeThread.getHandler(), R.id.ocr_decode);
     }

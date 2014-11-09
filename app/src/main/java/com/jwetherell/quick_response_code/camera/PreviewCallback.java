@@ -22,6 +22,10 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
+import com.ggstudios.swapp.MainActivity;
+import com.ggstudios.swapp.OcrRecognizeAsyncTask;
+import com.jwetherell.quick_response_code.IDecoderActivity;
+
 final class PreviewCallback implements Camera.PreviewCallback {
 
     private static final String TAG = PreviewCallback.class.getSimpleName();
@@ -30,8 +34,18 @@ final class PreviewCallback implements Camera.PreviewCallback {
     private Handler previewHandler;
     private int previewMessage;
 
+    private Handler previewReadyHandler;
+
+    private boolean isOcr;
+
     PreviewCallback(CameraConfigurationManager configManager) {
         this.configManager = configManager;
+    }
+
+    PreviewCallback(CameraConfigurationManager configManager, boolean isOcr, Handler previewReadyHandler) {
+        this.configManager = configManager;
+        this.isOcr = isOcr;
+        this.previewReadyHandler = previewReadyHandler;
     }
 
     void setHandler(Handler previewHandler, int previewMessage) {
@@ -42,13 +56,18 @@ final class PreviewCallback implements Camera.PreviewCallback {
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
         Point cameraResolution = configManager.getCameraResolution();
-        Handler thePreviewHandler = previewHandler;
-        if (thePreviewHandler != null) {
-            Message message = thePreviewHandler.obtainMessage(previewMessage, cameraResolution.x, cameraResolution.y, data);
-            message.sendToTarget();
-            previewHandler = null;
+        if (!isOcr) {
+            Handler thePreviewHandler = previewHandler;
+            if (thePreviewHandler != null) {
+                Message message = thePreviewHandler.obtainMessage(previewMessage, cameraResolution.x, cameraResolution.y, data);
+                message.sendToTarget();
+                previewHandler = null;
+            } else {
+                Log.d(TAG, "Got preview callback, but no handler for it");
+            }
         } else {
-            Log.d(TAG, "Got preview callback, but no handler for it");
+            Message message = previewReadyHandler.obtainMessage(MainActivity.PREVIEW_READY, cameraResolution.x, cameraResolution.y, data);
+            message.sendToTarget();
         }
     }
 

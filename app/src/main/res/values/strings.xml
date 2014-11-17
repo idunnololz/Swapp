@@ -61,5 +61,7 @@
     <string name="drawer_open">Drawer open</string>
     <string name="drawer_close">Drawer close</string>
     <string name="edit_my_info">Edit My Info</string>
+    <string name="contact_dne">Contact not found</string>
+    <string name="contact_dne_message">The contact you are trying to open does not exist. It may have been deleted.</string>
 
 </resources>

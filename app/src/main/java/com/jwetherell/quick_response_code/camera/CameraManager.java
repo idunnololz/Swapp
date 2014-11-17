@@ -54,6 +54,9 @@ public final class CameraManager {
     private int requestedFramingRectWidth;
     private int requestedFramingRectHeight;
 
+    private Handler previewHandler, autoFocusHandler;
+    private int previewMsg, autoFocusMsg;
+
     private boolean awaitingOcr = false;
 
     /**
@@ -162,6 +165,8 @@ public final class CameraManager {
         Camera theCamera = camera;
         if (theCamera != null && !previewing) {
             theCamera.startPreview();
+            previewCallback.setHandler(previewHandler, previewMsg);
+            autoFocusCallback.setHandler(autoFocusHandler, autoFocusMsg);
             previewing = true;
         }
     }
@@ -192,6 +197,8 @@ public final class CameraManager {
         if (!awaitingOcr) {
             Camera theCamera = camera;
             if (theCamera != null && previewing) {
+                previewHandler = handler;
+                previewMsg = message;
                 previewCallback.setHandler(handler, message);
                 theCamera.setOneShotPreviewCallback(previewCallback);
             }
@@ -208,6 +215,8 @@ public final class CameraManager {
      */
     public void requestAutoFocus(Handler handler, int message) {
         if (camera != null && previewing) {
+            autoFocusHandler = handler;
+            autoFocusMsg = message;
             autoFocusCallback.setHandler(handler, message);
             camera.autoFocus(autoFocusCallback);
         }

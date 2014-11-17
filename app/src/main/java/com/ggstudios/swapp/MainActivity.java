@@ -17,9 +17,10 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.ContactsContract;
-import android.support.v4.app.ActionBarDrawerToggle;
+import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.MotionEventCompat;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.Display;
@@ -46,6 +47,7 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.ggstudios.dialogs.AlertDialogFragment;
 import com.ggstudios.widgets.ViewfinderView;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
@@ -75,8 +77,11 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
+import static com.ggstudios.dialogs.AlertDialogFragment.AlertDialogFragmentListener;
 
-public class MainActivity extends Activity implements IDecoderActivity, SurfaceHolder.Callback {
+
+public class MainActivity extends FragmentActivity implements IDecoderActivity, SurfaceHolder.Callback,
+        AlertDialogFragmentListener {
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private static final boolean DEBUG = false;
@@ -108,6 +113,7 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
     View textContainer;
     DrawerLayout drawer;
     ListView listHistory;
+    CheckBox toggle;
 
     private TessBaseAPI baseApi;
 
@@ -129,7 +135,7 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         decodeFormats = new ArrayList<BarcodeFormat>();
         decodeFormats.add(BarcodeFormat.QR_CODE);
 
-        final CheckBox toggle = (CheckBox) findViewById(R.id.toggle);
+        toggle = (CheckBox) findViewById(R.id.toggle);
         surfaceView = (SurfaceView) findViewById(R.id.preview_view);
         imgQr = (ImageView) findViewById(R.id.qr_code);
         qrContainer = findViewById(R.id.qr_container);
@@ -174,23 +180,24 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
                 switch (MotionEventCompat.getActionMasked(motionEvent)) {
                     case MotionEvent.ACTION_UP:
                         if (motionEvent.getX() < toggle.getWidth() / 2) {
-                            if (cameraHit) {
-                                cameraHit = false;
-                                toggle.setButtonDrawable(R.drawable.camera_qr_switch);
-                            } else {
-                                if (toggle.isChecked()) {
-                                    toggle.setButtonDrawable(R.drawable.ic_camera);
-                                    cameraHit = true;
-                                }
-                            }
+//                            if (cameraHit) {
+//                                cameraHit = false;
+//                                toggle.setButtonDrawable(R.drawable.camera_qr_switch);
+//                            } else {
+//                                if (toggle.isChecked()) {
+//                                    toggle.setButtonDrawable(R.drawable.ic_camera);
+//                                    cameraHit = true;
+//                                }
+//                            }
+                            toggle.setChecked(true);
                         } else {
                             cameraHit = false;
                             toggle.setButtonDrawable(R.drawable.camera_qr_switch);
-                            toggle.setChecked(true);
+                            toggle.setChecked(false);
                         }
                         break;
                 }
-                return false;
+                return true;
             }
         });
         toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -286,10 +293,18 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
                 ContactHistoryItem item = adapter.getItem(i);
 
                 try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW);
-                    Uri contactUri = ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, item.cId);
-                    intent.setData(contactUri);
-                    startActivity(intent);
+                    if (Utils.contactIdExist(MainActivity.this, item.cId)) {
+                        Intent intent = new Intent(Intent.ACTION_VIEW);
+                        Uri contactUri = ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, item.cId);
+                        intent.setData(contactUri);
+                        startActivity(intent);
+                    } else {
+                        AlertDialogFragment.Builder builder = new AlertDialogFragment.Builder();
+                        builder.setTitle(R.string.contact_dne)
+                                .setMessage(R.string.contact_dne_message)
+                                .setPositiveButton(android.R.string.ok)
+                                .create().show(getSupportFragmentManager(), "dialog");
+                    }
                 } catch (ActivityNotFoundException e) {}
             }
         });
@@ -299,20 +314,20 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
 
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer,
-                R.drawable.btn_bg, R.string.drawer_open, R.string.drawer_close) {
+                R.string.drawer_open, R.string.drawer_close) {
 
             /** Called when a drawer has settled in a completely closed state. */
             public void onDrawerClosed(View view) {
                 super.onDrawerClosed(view);
                 //getActionBar().setTitle(mTitle);
-                invalidateOptionsMenu(); // creates call to onPrepareOptionsMenu()
+                supportInvalidateOptionsMenu();
             }
 
             /** Called when a drawer has settled in a completely open state. */
             public void onDrawerOpened(View drawerView) {
                 super.onDrawerOpened(drawerView);
                 //getActionBar().setTitle(mDrawerTitle);
-                invalidateOptionsMenu(); // creates call to onPrepareOptionsMenu()
+                supportInvalidateOptionsMenu(); // creates call to onPrepareOptionsMenu()
             }
         };
 
@@ -324,47 +339,12 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         if (imgQr.getDrawable() == null) {
             String displayName = null;
             String email = null;
+            String phoneNumber = Utils.getPhoneNumber(this);
 
-            TelephonyManager tMgr = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-            String phoneNumber = tMgr.getLine1Number();
-            {
-                final String[] SELF_PROJECTION = new String[]{
-                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME};
-                Cursor c = getContentResolver().query(ContactsContract.Profile.CONTENT_URI, SELF_PROJECTION, null, null, null);
-                int count = c.getCount();
-                String[] columnNames = c.getColumnNames();
-                c.moveToFirst();
-                int position = c.getPosition();
+            displayName = Utils.getName(this);
+            email = Utils.getEmail(this);
 
-                if (count == 1 && position == 0) {
-                    displayName = c.getString(c.getColumnIndex(columnNames[0]));
-                }
-                c.close();
-            }
-
-            {
-                final String[] SELF_PROJECTION = new String[]{
-                        ContactsContract.CommonDataKinds.Email.ADDRESS,
-                        ContactsContract.CommonDataKinds.Email.IS_PRIMARY,};
-                Cursor c = getContentResolver().query(
-                        Uri.withAppendedPath(
-                            ContactsContract.Profile.CONTENT_URI,
-                            ContactsContract.Contacts.Data.CONTENT_DIRECTORY), SELF_PROJECTION,
-                        ContactsContract.Contacts.Data.MIMETYPE + " = ?",
-                        new String[]{ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE},
-                        ContactsContract.Contacts.Data.IS_PRIMARY + " DESC");
-                int count = c.getCount();
-                String[] columnNames = c.getColumnNames();
-                c.moveToFirst();
-                int position = c.getPosition();
-
-                if (count == 1 && position == 0) {
-                    email = c.getString(c.getColumnIndex(columnNames[0]));
-                }
-                c.close();
-            }
-
-            String compact = phoneNumber + "|" + displayName + "|" + email;
+            String compact = (DEBUG ? "1-416-000-0000" : phoneNumber) + "|" + displayName + "|" + email;
 
             Log.d(TAG, "compact: " + compact);
 
@@ -509,6 +489,8 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
             });
         }
 
+        cameraManager.startPreview();
+
         showScanner();
 
         final SurfaceHolder surfaceHolder = surfaceView.getHolder();
@@ -521,6 +503,8 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
                 @Override
                 public void run() {
                     initCamera(surfaceHolder, surfaceView.getWidth(), surfaceView.getHeight());
+
+                    handler.restartPreviewAndDecode(true);
                 }
             });
         } else {
@@ -529,6 +513,20 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
             surfaceHolder.addCallback(this);
             surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
         }
+
+        if (!toggle.isChecked()) {
+            genQrIfNeeded();
+            qrContainer.setVisibility(View.VISIBLE);
+            handler.disarm();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        cameraManager.stopPreview();
+        imgQr.setImageDrawable(null);
     }
 
     @Override
@@ -687,6 +685,16 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
         handler.reset();
     }
 
+    @Override
+    public void onPositiveClick(AlertDialogFragment dialog, String tag) {
+
+    }
+
+    @Override
+    public void onNegativeClick(AlertDialogFragment dialog, String tag) {
+
+    }
+
     private static class ViewHolder {
         TextView txtName;
         TextView txtDate;
@@ -695,7 +703,7 @@ public class MainActivity extends Activity implements IDecoderActivity, SurfaceH
     private static class ContactHistoryItem {
         String name;
         Date timeAdded;
-        int cId;
+        long cId;
 
         public ContactHistoryItem() {}
 

@@ -11,8 +11,9 @@
         android:layout_height="match_parent">
 
         <SurfaceView android:id="@+id/preview_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center">
         </SurfaceView>
 
 
@@ -118,7 +119,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:src="@drawable/ic_menu"
-                android:background="?android:attr/selectableItemBackground"
+                style="@style/SelectableItem"
                 android:padding="10dp"
                 android:layout_alignParentRight="true"
                 android:layout_marginTop="35dp"
@@ -135,10 +136,8 @@
             <CheckBox
                 android:id="@+id/toggle"
                 android:button="@drawable/camera_qr_switch"
-                android:layout_width="wrap_content"
+                android:layout_width="265dp"
                 android:layout_height="wrap_content"
-                android:scaleX="0.8"
-                android:scaleY="0.8"
                 android:layout_centerInParent="true"/>
 
 
@@ -175,7 +174,7 @@
 
             <ImageButton
                 android:id="@+id/btn_close"
-                android:background="?android:attr/selectableItemBackground"
+                style="@style/SelectableItem"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:src="@drawable/ic_close"

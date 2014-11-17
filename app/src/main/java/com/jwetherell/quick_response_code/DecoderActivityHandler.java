@@ -64,7 +64,7 @@ public final class DecoderActivityHandler extends Handler {
         // Start ourselves capturing previews and decoding.
         this.cameraManager = cameraManager;
         cameraManager.startPreview();
-        restartPreviewAndDecode();
+        restartPreviewAndDecode(false);
     }
 
     @Override
@@ -80,7 +80,7 @@ public final class DecoderActivityHandler extends Handler {
                 break;
             case R.id.restart_preview:
                 Log.d(TAG, "Got restart preview message");
-                restartPreviewAndDecode();
+                restartPreviewAndDecode(false);
                 break;
             case R.id.decode_succeeded:
                 if (state != State.DISARM) {
@@ -137,7 +137,7 @@ public final class DecoderActivityHandler extends Handler {
     }
 
     public void reset() {
-        restartPreviewAndDecode();
+        restartPreviewAndDecode(false);
         cameraManager.requestPreviewFrame(decodeThread.getHandler(), R.id.decode);
     }
 
@@ -149,8 +149,8 @@ public final class DecoderActivityHandler extends Handler {
         state = State.PREVIEW;
     }
 
-    void restartPreviewAndDecode() {
-        if (state == State.SUCCESS) {
+    public void restartPreviewAndDecode(boolean force) {
+        if (force || state == State.SUCCESS) {
             state = State.PREVIEW;
             cameraManager.requestPreviewFrame(decodeThread.getHandler(), R.id.decode);
             cameraManager.requestAutoFocus(this, R.id.auto_focus);
